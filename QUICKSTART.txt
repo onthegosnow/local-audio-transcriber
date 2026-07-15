@@ -26,16 +26,15 @@ GETTING STARTED
 
 OPTIONAL: LOCAL AI SUMMARIES
 
-  Want a short AI summary or cleanup of each transcript? It runs locally too.
+  Want a short AI summary or cleanup of each transcript? It runs locally too —
+  no cloud, no account.
 
-  1. Install Ollama:
-        curl -fsSL https://ollama.com/install.sh | sh
+  Just open the app and click "Enable AI summaries" (right-hand panel). It sets
+  everything up for you — a few GB download, one time, no password needed. When
+  it finishes, pick a task (Summary, Bullet points, Action items, ...) and click
+  "Process with LLM".
 
-  2. Download a model:
-        ollama pull llama3.2
-
-  3. Back in the app, click the refresh (↻) button next to the model list.
-     Done.
+  (The installer also offers to set this up for you during the first install.)
 
 
 IF SOMETHING GOES WRONG

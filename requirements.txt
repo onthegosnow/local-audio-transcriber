@@ -9,3 +9,7 @@ PySide6>=6.6.0
 
 # Used to talk to the local Ollama HTTP API.
 requests>=2.31.0
+
+# Decompresses the Ollama runtime (.tar.zst) for the no-root "Enable AI
+# summaries" setup. Small pure-wheel dependency.
+zstandard>=0.22.0

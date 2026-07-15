@@ -138,6 +138,7 @@ fi
 # 3. Virtualenv (idempotent + self-healing)                                   #
 # --------------------------------------------------------------------------- #
 VENV="$DIR/.venv"
+FRESH_VENV=0   # set when we create the venv (=> first install, not an update)
 
 venv_ok=0
 if [[ -d "$VENV" ]] && "$VENV/bin/python" -c 'import sys' >/dev/null 2>&1; then
@@ -159,6 +160,7 @@ if [[ ! -d "$VENV" ]]; then
         echo "       Run:  sudo apt-get install -y python3-venv   and re-run." >&2
         exit 1
     }
+    FRESH_VENV=1
 else
     echo "==> Reusing existing virtualenv (.venv). Pass --force to rebuild."
 fi
@@ -227,6 +229,34 @@ if command -v update-desktop-database >/dev/null 2>&1; then
 fi
 
 # --------------------------------------------------------------------------- #
+# 6.5 Optional: local AI summaries (Ollama)                                   #
+# Only on a FRESH, interactive install, and only if Ollama isn't already set  #
+# up. Installs into the home folder (no root). Can also be done in-app later. #
+# --------------------------------------------------------------------------- #
+if [[ $FRESH_VENV -eq 1 ]] && [ -t 0 ] \
+   && ! command -v ollama >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/ollama" ]; then
+    echo
+    echo "Optional: enable local AI summaries now?"
+    echo "  Downloads Ollama + an AI model (a few GB) into your home folder and"
+    echo "  runs entirely on your computer — no cloud, no password. You can also"
+    echo "  turn it on later from inside the app ('Enable AI summaries')."
+    printf "  Set it up now? [y/N] "
+    read -r AI_ANS || AI_ANS=""
+    case "$AI_ANS" in
+        [Yy]*)
+            echo "==> Setting up AI summaries (this can take several minutes)…"
+            if "$VENV/bin/python" -m transcriber.ollama_setup --model llama3.2; then
+                echo "==> AI summaries are ready."
+            else
+                echo "    (AI setup didn't finish — you can retry anytime from the"
+                echo "     app: click 'Enable AI summaries'.)"
+            fi
+            ;;
+        *) echo "  Skipped — enable it anytime from the app." ;;
+    esac
+fi
+
+# --------------------------------------------------------------------------- #
 # 7. Done                                                                     #
 # --------------------------------------------------------------------------- #
 echo
@@ -241,7 +271,7 @@ echo "   The first time you transcribe, it downloads the Whisper"
 echo "   speech model (a few hundred MB). That can take a few"
 echo "   minutes with no visible progress — it is NOT frozen."
 echo
-echo " Optional — local AI summaries/cleanup (Ollama):"
-echo "   curl -fsSL https://ollama.com/install.sh | sh"
-echo "   ollama pull llama3.2"
+echo " Optional — local AI summaries:"
+echo "   Open the app and click 'Enable AI summaries' (no terminal, no"
+echo "   password), or re-run ./install.sh to set it up here."
 echo "============================================================"

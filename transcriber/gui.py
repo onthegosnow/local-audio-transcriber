@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from transcriber import engine, llm, __version__
+from transcriber import engine, llm, ollama_setup, __version__
 
 # Where updates are published. `update.sh` pulls new releases from here too.
 GITHUB_REPO = "onthegosnow/local-audio-transcriber"
@@ -130,6 +130,33 @@ class LLMThread(QThread):
             self.error.emit(str(e))
 
 
+class OllamaSetupThread(QThread):
+    """Installs/starts Ollama for the AI-summary feature (no root)."""
+
+    status = Signal(str)
+    progress = Signal(int)
+    done = Signal(bool, str)  # (ok, error_message)
+
+    def __init__(self, full: bool, model: str = "llama3.2"):
+        super().__init__()
+        self.full = full  # full setup vs. just start an already-installed server
+        self.model = model
+
+    def run(self):
+        try:
+            if self.full:
+                ollama_setup.setup(
+                    self.model,
+                    on_status=self.status.emit,
+                    on_progress=self.progress.emit,
+                )
+            else:
+                ollama_setup.start_server(on_status=self.status.emit)
+            self.done.emit(True, "")
+        except Exception as e:
+            self.done.emit(False, str(e))
+
+
 class UpdateCheckThread(QThread):
     # (update_available, latest_version, error_message)
     result = Signal(bool, str, str)
@@ -174,6 +201,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._load_settings()
         self._refresh_ollama_models()
+        self._maybe_autostart_ollama()
 
     # ---- UI construction -------------------------------------------------- #
     def _build_ui(self):
@@ -299,6 +327,19 @@ class MainWindow(QMainWindow):
         model_row.addWidget(self.refresh_models_btn)
         llm_row.addLayout(model_row, 1, 1)
         rv.addLayout(llm_row)
+
+        # Shown only when Ollama isn't set up yet — one-click, no-root install.
+        self.setup_btn = QPushButton("Enable AI summaries…")
+        self.setup_btn.setToolTip(
+            "Download and set up local AI (Ollama) — runs on your computer, no cloud."
+        )
+        self.setup_btn.clicked.connect(self.on_setup_ai)
+        self.setup_btn.setVisible(False)
+        rv.addWidget(self.setup_btn)
+
+        self.setup_progress = QProgressBar()
+        self.setup_progress.setVisible(False)
+        rv.addWidget(self.setup_progress)
 
         self.custom_prompt = QLineEdit()
         self.custom_prompt.setPlaceholderText("Custom instruction (used when Task = Custom…)")
@@ -452,24 +493,86 @@ class MainWindow(QMainWindow):
     # ---- LLM post-processing --------------------------------------------- #
     def _refresh_ollama_models(self):
         self.ollama_combo.clear()
-        if not llm.is_available():
+        if llm.is_available():
+            try:
+                models = llm.list_models()
+            except Exception:
+                models = []
+            if models:
+                self.setup_btn.setVisible(False)
+                self.ollama_combo.setEnabled(True)
+                self.process_btn.setEnabled(True)
+                for m in models:
+                    self.ollama_combo.addItem(m)
+            else:
+                # Ollama running but no model installed — offer to pull one.
+                self.ollama_combo.addItem("No AI model installed")
+                self.ollama_combo.setEnabled(False)
+                self.process_btn.setEnabled(False)
+                if ollama_setup.supported():
+                    self.setup_btn.setText("Download AI model…")
+                    self.setup_btn.setVisible(True)
+                    self.setup_btn.setEnabled(True)
+            return
+        # Ollama not reachable.
+        self.ollama_combo.setEnabled(False)
+        self.process_btn.setEnabled(False)
+        if ollama_setup.supported():
+            self.ollama_combo.addItem("AI summaries not set up")
+            self.setup_btn.setText("Enable AI summaries…")
+            self.setup_btn.setVisible(True)
+            self.setup_btn.setEnabled(True)
+        else:
             self.ollama_combo.addItem("Ollama not running")
-            self.ollama_combo.setEnabled(False)
-            self.process_btn.setEnabled(False)
+            self.setup_btn.setVisible(False)
+
+    def on_setup_ai(self):
+        resp = QMessageBox.question(
+            self,
+            "Enable AI summaries",
+            "Set up local AI summaries?\n\n"
+            "This downloads Ollama and an AI model (a few GB) into your home "
+            "folder and runs entirely on your computer — no account, no cloud, "
+            "and no password needed.\n\nContinue?",
+        )
+        if resp != QMessageBox.Yes:
             return
-        try:
-            models = llm.list_models()
-        except Exception:
-            models = []
-        if not models:
-            self.ollama_combo.addItem("No models — run: ollama pull llama3.2")
-            self.ollama_combo.setEnabled(False)
-            self.process_btn.setEnabled(False)
-            return
-        self.ollama_combo.setEnabled(True)
-        self.process_btn.setEnabled(True)
-        for m in models:
-            self.ollama_combo.addItem(m)
+        self.setup_btn.setEnabled(False)
+        self.setup_progress.setValue(0)
+        self.setup_progress.setVisible(True)
+        self.statusBar().showMessage("Setting up AI summaries…")
+        self._setup_thread = OllamaSetupThread(full=True)
+        self._setup_thread.status.connect(self.statusBar().showMessage)
+        self._setup_thread.progress.connect(self.setup_progress.setValue)
+        self._setup_thread.done.connect(self._on_setup_done)
+        self._setup_thread.start()
+
+    def _on_setup_done(self, ok: bool, err: str):
+        self.setup_progress.setVisible(False)
+        if ok:
+            self.statusBar().showMessage("AI summaries are ready.")
+            self._refresh_ollama_models()
+            QMessageBox.information(
+                self, "AI summaries", "All set — AI summaries are ready to use."
+            )
+        else:
+            self.setup_btn.setEnabled(True)
+            self.statusBar().showMessage("AI setup did not finish.")
+            QMessageBox.warning(self, "AI setup", f"Setup didn't finish:\n\n{err}")
+
+    def _maybe_autostart_ollama(self):
+        # If Ollama is installed but not running (e.g. after a reboot), start it
+        # quietly in the background so the panel just works next time.
+        if (
+            ollama_setup.supported()
+            and ollama_setup.is_installed()
+            and not llm.is_available()
+        ):
+            self._autostart_thread = OllamaSetupThread(full=False)
+            self._autostart_thread.done.connect(
+                lambda ok, err: self._refresh_ollama_models() if ok else None
+            )
+            self._autostart_thread.start()
 
     def _on_task_changed(self, name: str):
         self.custom_prompt.setEnabled(name == "Custom…")

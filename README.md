@@ -55,22 +55,15 @@ From the app menu (**Local Audio Transcriber**) or a terminal:
 
 ## Optional: local LLM post-processing (Ollama)
 
-The transcription works without this. To enable the right-hand LLM panel:
+Transcription works without this. To turn on AI summaries/cleanup, just click
+**"Enable AI summaries"** in the app's right-hand panel — it installs Ollama and
+a model into your home folder (no root, no password), starts it, and enables the
+panel. The installer also offers to set this up during the first `./install.sh`.
 
-```bash
-# 1. Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# 2. Pull a model (any chat model works)
-ollama pull llama3.2        # small & fast
-# or: ollama pull mistral   /  ollama pull qwen2.5
-
-# 3. Make sure it's running (systemd usually starts it automatically)
-ollama serve &
-```
-
-Then click **↻** in the app to refresh the model list. Ollama is auto-detected
-at `http://localhost:11434` (override with the `OLLAMA_HOST` env var).
+It's all local: Ollama is auto-detected at `http://localhost:11434` (override
+with the `OLLAMA_HOST` env var), and the app auto-starts it on launch if it's
+installed. Prefer to do it by hand instead? Any manual Ollama install works too
+(`curl -fsSL https://ollama.com/install.sh | sh` then `ollama pull llama3.2`).
 
 ## How it works
 
