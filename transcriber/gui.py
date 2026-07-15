@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QSettings, QThread, Signal
 from PySide6.QtGui import QAction, QFont, QGuiApplication, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -172,6 +172,7 @@ class MainWindow(QMainWindow):
         self.llm_thread: LLMThread | None = None
 
         self._build_ui()
+        self._load_settings()
         self._refresh_ollama_models()
 
     # ---- UI construction -------------------------------------------------- #
@@ -581,7 +582,41 @@ class MainWindow(QMainWindow):
             "post-processing.<br><br>Everything runs on your machine — no cloud.",
         )
 
+    # ---- Persist the user's choices between sessions --------------------- #
+    def _load_settings(self):
+        s = QSettings()
+        model = s.value("model", "")
+        if model:
+            i = self.model_combo.findData(model)
+            if i >= 0:
+                self.model_combo.setCurrentIndex(i)
+        device = s.value("device", "")
+        if device:
+            i = self.device_combo.findData(device)
+            if i >= 0:
+                self.device_combo.setCurrentIndex(i)
+        lang_i = s.value("language_index", -1, type=int)
+        if 0 <= lang_i < self.lang_combo.count():
+            self.lang_combo.setCurrentIndex(lang_i)
+        self.ts_check.setChecked(s.value("timestamps", False, type=bool))
+        self.vad_check.setChecked(s.value("vad", True, type=bool))
+        task = s.value("task", "")
+        if task:
+            i = self.task_combo.findText(task)
+            if i >= 0:
+                self.task_combo.setCurrentIndex(i)
+
+    def _save_settings(self):
+        s = QSettings()
+        s.setValue("model", self.model_combo.currentData())
+        s.setValue("device", self.device_combo.currentData())
+        s.setValue("language_index", self.lang_combo.currentIndex())
+        s.setValue("timestamps", self.ts_check.isChecked())
+        s.setValue("vad", self.vad_check.isChecked())
+        s.setValue("task", self.task_combo.currentText())
+
     def closeEvent(self, event):
+        self._save_settings()
         for th in (self.transcribe_thread, self.llm_thread):
             if th and th.isRunning():
                 th.cancel()
@@ -610,6 +645,7 @@ def _friendly_error(message: str) -> str:
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Local Audio Transcriber")
+    app.setOrganizationName("LocalAudioTranscriber")  # needed for QSettings
     # Associates the window with local-transcriber.desktop so the taskbar shows
     # the right icon/name (esp. on Wayland/GNOME) and matches StartupWMClass.
     app.setDesktopFileName("local-transcriber")
