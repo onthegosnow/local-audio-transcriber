@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Local Audio Transcriber
+GenericName=Audio Transcription
+Comment=Transcribe audio offline with faster-whisper + local LLM
+Exec="@@EXEC@@" %f
+Icon=@@ICON@@
+Terminal=false
+StartupWMClass=local-transcriber
+Categories=AudioVideo;Audio;Utility;
+MimeType=audio/mpeg;audio/wav;audio/x-wav;audio/flac;audio/ogg;audio/mp4;video/mp4;
+Keywords=transcribe;whisper;speech;audio;text;subtitle;

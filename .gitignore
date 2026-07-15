@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# App-local install artifacts (created on the user's machine)
+.venv/
+install.log
+.backup-*/
+
+# Build output
+dist/
+
+# OS junk
+.DS_Store
+._*
+
+# Test scratch
+smoke-venv/

@@ -1,0 +1,47 @@
+Local Audio Transcriber turns audio recordings into text right on your
+computer, fully offline, with an optional local AI summary.
+
+
+GETTING STARTED
+
+  1. Extract the archive. Double-click it in the Files app, or in a terminal:
+        tar -xzf local-audio-transcriber-*.tar.gz
+
+  2. Open a terminal inside the extracted folder. (In the Files app you can
+     right-click the folder and choose "Open in Terminal".)
+
+  3. Run the installer:
+        ./install.sh
+     It may ask for your password so it can install a few system pieces.
+     The first run takes a few minutes while it downloads components. That's
+     normal.
+
+  4. Launch the app from your applications menu ("Local Audio Transcriber"),
+     or from the terminal:
+        ./run.sh
+
+  Note: The very first time you transcribe something, it downloads the speech
+  model. This needs internet and only happens once.
+
+
+OPTIONAL: LOCAL AI SUMMARIES
+
+  Want a short AI summary or cleanup of each transcript? It runs locally too.
+
+  1. Install Ollama:
+        curl -fsSL https://ollama.com/install.sh | sh
+
+  2. Download a model:
+        ollama pull llama3.2
+
+  3. Back in the app, click the refresh (↻) button next to the model list.
+     Done.
+
+
+IF SOMETHING GOES WRONG
+
+  If the app window won't open, just run  ./install.sh  again — it installs
+  the system libraries the window needs. If it still fails, send back the file
+  "install.log" that the installer leaves in the folder.
+
+That's it. Enjoy, and thanks for trying it out!
