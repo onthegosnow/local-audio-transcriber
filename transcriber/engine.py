@@ -119,12 +119,24 @@ def transcribe(
     if not os.path.exists(params.audio_path):
         raise FileNotFoundError(f"Audio file not found: {params.audio_path}")
 
+    device = params.device
     compute_type = params.resolved_compute()
 
     if on_status:
-        on_status(f"Loading model '{params.model_size}' ({params.device}/{compute_type})…")
+        on_status(f"Loading model '{params.model_size}' ({device}/{compute_type})…")
 
-    model = _get_model(params.model_size, params.device, compute_type)
+    try:
+        model = _get_model(params.model_size, device, compute_type)
+    except Exception:
+        # If the GPU path can't initialize (missing CUDA/cuDNN, wrong arch, etc.)
+        # transparently fall back to CPU instead of failing the whole job.
+        if device != "cuda":
+            raise
+        device = "cpu"
+        compute_type = DEFAULT_COMPUTE["cpu"]
+        if on_status:
+            on_status("GPU unavailable — using CPU instead…")
+        model = _get_model(params.model_size, device, compute_type)
 
     if on_status:
         on_status("Analyzing audio…")

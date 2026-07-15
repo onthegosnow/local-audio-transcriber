@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from transcriber import engine, llm, ollama_setup, __version__
+from transcriber import engine, gpu, llm, ollama_setup, __version__
 
 # Where updates are published. `update.sh` pulls new releases from here too.
 GITHUB_REPO = "onthegosnow/local-audio-transcriber"
@@ -247,6 +247,10 @@ class MainWindow(QMainWindow):
         self.device_combo = QComboBox()
         self.device_combo.addItem("CPU", "cpu")
         self.device_combo.addItem("NVIDIA GPU (CUDA)", "cuda")
+        # Default to the GPU only when CUDA transcription is actually usable.
+        _rec = self.device_combo.findData(gpu.recommended_device())
+        if _rec >= 0:
+            self.device_combo.setCurrentIndex(_rec)
         opts.addWidget(self.device_combo, 0, 3)
 
         opts.addWidget(QLabel("Language:"), 1, 0)

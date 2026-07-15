@@ -181,6 +181,32 @@ echo "==> Installing Python dependencies (this can take a few minutes)…"
 python -m pip install --prefer-binary --retries 5 --timeout 60 -r "$DIR/requirements.txt"
 
 # --------------------------------------------------------------------------- #
+# 4.5 GPU acceleration (auto-detected)                                        #
+# faster-whisper can use an NVIDIA GPU, but only via the x86_64 CUDA wheels.   #
+# On aarch64 (e.g. Grace Blackwell / DGX) transcription uses the CPU (fast);   #
+# Ollama still uses the GPU for summaries either way.                         #
+# --------------------------------------------------------------------------- #
+ARCH="$(uname -m)"
+GPU_NAME=""
+if command -v nvidia-smi >/dev/null 2>&1; then
+    GPU_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 || true)"
+fi
+if [[ -n "$GPU_NAME" ]]; then
+    echo "==> NVIDIA GPU detected: $GPU_NAME  (arch: $ARCH)"
+    if [[ "$ARCH" == "x86_64" ]]; then
+        echo "    Installing CUDA math libraries for GPU transcription…"
+        python -m pip install --prefer-binary --retries 5 --timeout 120 \
+            nvidia-cublas-cu12 nvidia-cudnn-cu12 \
+            || echo "    (CUDA libs failed to install; transcription will use CPU)"
+    else
+        echo "    ($ARCH: faster-whisper has no prebuilt GPU engine for this arch —"
+        echo "     transcription uses the CPU, which is fast here. Summaries still"
+        echo "     use the GPU via Ollama.)"
+    fi
+    echo
+fi
+
+# --------------------------------------------------------------------------- #
 # 5. Smoke test — fail here, not at first click                               #
 # --------------------------------------------------------------------------- #
 # IMPORTANT: when a display is present we let Qt pick the REAL platform plugin
@@ -265,6 +291,9 @@ echo " All set!  Two ways to launch the app:"
 echo
 echo "   • From your applications menu:  'Local Audio Transcriber'"
 echo "   • From a terminal:              $DIR/run.sh"
+echo
+echo " Hardware detected (transcription / summary acceleration):"
+"$VENV/bin/python" -m transcriber.gpu 2>/dev/null | sed 's/^/   /' || true
 echo
 echo " First-run note:"
 echo "   The first time you transcribe, it downloads the Whisper"
